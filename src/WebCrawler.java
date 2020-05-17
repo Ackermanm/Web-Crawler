@@ -7,32 +7,32 @@ import java.util.*;
 
 public class WebCrawler {
 
-    public static ArrayList<String> willAnalyse = new ArrayList<>() {
-        {
-            add("http://comp3310.ddns.net:7880\n");
-        }
-    };
-    public static HashSet<String> beenAnalysed = new HashSet<>();
-    public static int HTMLPage = 0;
-    public static int nonHTML = 0;
+    public static URL Url;
+    public static ArrayList<String> willAnalyse = new ArrayList<>(); // The urls that are on-site valid html and will be analysed.
+    public static HashSet<String> beenAnalysed = new HashSet<>(); // The urls that has been analysed.
+    public static HashSet<String> noHTML = new HashSet<>();
     public static String[] smallestPage = {"", "2000"};
     public static String[] largestPage = {"", "0"};
-    public static String[] oldestPage = {"", "15 May 2020 09:00:00"};
-    public static String[] latestPage = {"", "01 Jan 1900 09:00:00"};
+    public static String[] oldestPage = {"", "Mon, 15 May 2020 09:00:00 GMT"};
+    public static String[] latestPage = {"", "Mon, 01 Jan 1900 09:00:00 GMT"};
     public static HashSet<String> invalidURL = new HashSet<>();
-    public static HashMap<String, String> onsiteURL = new HashMap<>();
+    public static HashMap<String, String> onsiteRedirectURL = new HashMap<>();
     public static HashSet<String> offsiteList = new HashSet<>();
     public static HashMap<String, String> offsiteMap = new HashMap<>();
 
 
     public static void main(String[] args) throws IOException, ParseException {
+        String strURLToAnalyse = "http://comp3310.ddns.net:7880";
+        willAnalyse.add(strURLToAnalyse);
+        Url = new URL(strURLToAnalyse);
+        System.out.println("\n\n");
 
         int i = 0;
         while (willAnalyse.size() > i) {
             currentURLAnalyse(willAnalyse.get(i));
-            beenAnalysed.add(willAnalyse.get(i));
             i++;
         }
+
         for (String str : offsiteList) {
             URL offUrl = new URL(str);
             try {
@@ -45,9 +45,9 @@ public class WebCrawler {
 
         System.out.println("\n");
         System.out.println("********** HERE ARE THE RESULTS **********\n\n" +
-                "Total number of distinct URLs: " + (beenAnalysed.size() + offsiteList.size()) + "\n" +
-                "The number of html pages: " + HTMLPage + "\n" +
-                "The number of non-html objects: " + nonHTML + "\n" +
+                "Total number of distinct URLs: " + (beenAnalysed.size() + noHTML.size() + offsiteList.size()) + "\n" +
+                "The number of html pages: " + beenAnalysed.size() + "\n" +
+                "The number of non-html objects: " + noHTML.size() + "\n" +
                 "The smallest page: " + smallestPage[0] + "(" + smallestPage[1] + " bytes)\n" +
                 "The biggest page: " + largestPage[0] + "(" + largestPage[1] + " bytes)\n" +
                 "The oldest page: " + oldestPage[0] + "(Modified on: " + oldestPage[1] + ")\n" +
@@ -57,8 +57,8 @@ public class WebCrawler {
             System.out.println("- " + str);
         }
         System.out.println("The table of on-site redirected URLs: ");
-        for (String str : onsiteURL.keySet()) {
-            System.out.println("- " + str + " -> " + onsiteURL.get(str));
+        for (String str : onsiteRedirectURL.keySet()) {
+            System.out.println("- " + str + " -> " + onsiteRedirectURL.get(str));
         }
         System.out.println("The table of off-site URLs: ");
         for (String str : offsiteMap.keySet()) {
@@ -67,8 +67,8 @@ public class WebCrawler {
     }
 
 
-    public static void currentURLAnalyse(String urlStr) throws IOException, ParseException {
-        URL url = new URL(urlStr);
+    public static void currentURLAnalyse(String urlString) throws IOException, ParseException {
+        URL url = new URL(urlString);
         String host = url.getHost();
         int port = url.getPort();
 
@@ -79,116 +79,77 @@ public class WebCrawler {
         bw.write("\r\n");
         bw.flush();
 
-        String document = "new StringBuilder()";
-
         BufferedReader br = new BufferedReader(new InputStreamReader(sock.getInputStream()));
         String line;
         String URLInLine;
+        System.out.println("The analyse of: " + urlString);
         while ((line = br.readLine()) != null) {
-            document += line;
+            System.out.println(line);
 
-            if (line.contains("src=")) {
-                nonHTML++;
-            }
-
-            if (line.contains("Content-Length")) {
-                String pageSize = line.substring(line.indexOf(':') + 2);
-                if (Integer.parseInt(pageSize) < Integer.parseInt(smallestPage[1])) {
-                    smallestPage[0] = urlStr;
-                    smallestPage[1] = pageSize;
-                }
-                if (Integer.parseInt(pageSize) > Integer.parseInt(largestPage[1])) {
-                    largestPage[0] = urlStr;
-                    largestPage[1] = pageSize;
-                }
-            }
-
-            if (line.contains("Last-Modified")) {
-                String tempDateStr = line.substring(line.indexOf(',') + 2, line.length() - 4);
-                if (dateParser(tempDateStr).before(dateParser(oldestPage[1]))) {
-                    oldestPage[0] = urlStr;
-                    oldestPage[1] = tempDateStr;
-                }
-                if (dateParser(tempDateStr).after(dateParser(latestPage[1]))) {
-                    latestPage[0] = urlStr;
-                    latestPage[1] = tempDateStr;
-                }
-            }
-
-            if (line.contains("404")) {
-                invalidURL.add(urlStr);
-            }
-
-            if (line.contains("Location")) {
-                onsiteURL.put(urlStr, line.substring(line.indexOf(':') + 2));
-            }
-
-            if (line.contains("href")) {
-                URLInLine = line.substring(line.indexOf('"') + 1, line.lastIndexOf('"'));
-                if (URLInLine.contains("http") && !URLInLine.contains("3310")) {
+            if (line.contains("<li> <a href=")) { //For item 02. Collecting all html pages.
+                URLInLine = line.substring(line.indexOf("href") + 6, line.indexOf("\">Here"));
+                if (URLInLine.contains("http") && !URLInLine.contains(host)) { // For item 07. Collecting off site urls.
                     offsiteList.add(URLInLine);
                 } else {
                     if (URLInLine.contains("http")) {
                     } else if (URLInLine.charAt(0) == '/') {
-                        URLInLine = "http://comp3310.ddns.net:7880" + URLInLine;
+                        URLInLine = Url.toString() + URLInLine;
                     } else {
-                        URLInLine = "http://comp3310.ddns.net:7880/" + URLInLine;
+                        URLInLine = Url.toString() + "/" + URLInLine;
                     }
                     if (!willAnalyse.contains(URLInLine)) {
                         willAnalyse.add(URLInLine);
                     }
                 }
+            }
 
+            if (line.contains("<img src=")) { // For item 02. Collecting non-html pages.
+                URLInLine = line.substring(line.lastIndexOf("src") + 5, line.indexOf("\" alt"));
+                String[] urlSplit = urlString.split("/");
+                noHTML.add(Url.toString() + "/" + urlSplit[3] + "/" + URLInLine);
+            }
+
+            if (line.contains("Content-Length")) { // for item 03. Get the smallest and the largest page.
+                String pageSize = line.substring(line.indexOf("Length") + 8);
+                if (!invalidURL.contains(urlString) && !onsiteRedirectURL.containsKey(urlString)) {
+                    if (Integer.parseInt(pageSize) < Integer.parseInt(smallestPage[1])) {
+                        smallestPage[0] = urlString;
+                        smallestPage[1] = pageSize;
+                    }
+                    if (Integer.parseInt(pageSize) > Integer.parseInt(largestPage[1])) {
+                        largestPage[0] = urlString;
+                        largestPage[1] = pageSize;
+                    }
+                }
+            }
+
+            if (line.contains("Last-Modified")) { // For item 04. Get the oldest and the latest page.
+                String tempDateStr = line.substring(line.indexOf("Modified") + 10);
+                if (dateParser(tempDateStr).before(dateParser(oldestPage[1]))) {
+                    oldestPage[0] = urlString;
+                    oldestPage[1] = tempDateStr;
+                }
+                if (dateParser(tempDateStr).after(dateParser(latestPage[1]))) {
+                    latestPage[0] = urlString;
+                    latestPage[1] = tempDateStr;
+                }
+            }
+
+            if (line.contains("404")) { // For item 05. Get the invalid pages.
+                invalidURL.add(urlString);
+            }
+
+            if (line.contains("Location")) { // For item 06. Collecting on-site redirected URLs.
+                onsiteRedirectURL.put(urlString, line.substring(line.indexOf(':') + 2));
             }
         }
-        if (document.contains("<html>")) {
-            HTMLPage++;
-        }
+        beenAnalysed.add(urlString);
     }
 
+    /* Method to parse date String to date */
     public static Date dateParser(String dateStr) throws ParseException {
-        String month = dateStr.substring(3, 6);
-        String nMonth = "";
-        switch (month) {
-            case "Jan":
-                nMonth = "01";
-                break;
-            case "Feb":
-                nMonth = "02";
-                break;
-            case "Mar":
-                nMonth = "03";
-                break;
-            case "Apr":
-                nMonth = "04";
-                break;
-            case "May":
-                nMonth = "05";
-                break;
-            case "Jun":
-                nMonth = "06";
-                break;
-            case "Jul":
-                nMonth = "07";
-                break;
-            case "Aug":
-                nMonth = "08";
-                break;
-            case "Sep":
-                nMonth = "09";
-                break;
-            case "Oct":
-                nMonth = "10";
-                break;
-            case "Nov":
-                nMonth = "11";
-                break;
-            case "Dec":
-                nMonth = "12";
-                break;
-        }
-        dateStr = dateStr.substring(0, 3) + nMonth + dateStr.substring(6);
-        SimpleDateFormat sdf = new SimpleDateFormat("dd MM yyyy HH:mm:ss");
-        return sdf.parse(dateStr);
+        SimpleDateFormat sdf = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US);
+        Date date = sdf.parse(dateStr);
+        return date;
     }
 }
