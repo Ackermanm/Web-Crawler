@@ -21,7 +21,11 @@ public class WebCrawler {
     public static HashMap<String, String> offsiteMap = new HashMap<>();
 
 
+
+
+    /** Here is the main method */
     public static void main(String[] args) throws IOException, ParseException {
+
         String strURLToAnalyse = "http://comp3310.ddns.net:7880";
         willAnalyse.add(strURLToAnalyse);
         Url = new URL(strURLToAnalyse);
@@ -67,7 +71,11 @@ public class WebCrawler {
     }
 
 
+
+
+    /** Core method for analysing one url */
     public static void currentURLAnalyse(String urlString) throws IOException, ParseException {
+
         URL url = new URL(urlString);
         String host = url.getHost();
         int port = url.getPort();
@@ -146,7 +154,11 @@ public class WebCrawler {
         beenAnalysed.add(urlString);
     }
 
-    /* Method to parse date String to date */
+
+
+
+
+    /** Method to parse date String to date */
     public static Date dateParser(String dateStr) throws ParseException {
         SimpleDateFormat sdf = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US);
         Date date = sdf.parse(dateStr);
